@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أداة تحليل العملات الرقمية</title>
+    <link rel="stylesheet" href="styles/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>أداة تحليل العملات الرقمية</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">الرئيسية</a></li>
+                <li><a href="about.html">عنّا</a></li>
+                <li><a href="contact.html">اتصل بنا</a></li>
+                <li><a href="blog.html">المدونة</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <div>
+            <select id="cryptoSelector">
+                <option value="">اختر عملة رقمية</option>
+                <option value="bitcoin">Bitcoin (BTC)</option>
+                <option value="ethereum">Ethereum (ETH)</option>
+                <option value="binancecoin">Binance Coin (BNB)</option>
+                <option value="ripple">Ripple (XRP)</option>
+                <option value="cardano">Cardano (ADA)</option>
+                <option value="solana">Solana (SOL)</option>
+                <option value="polkadot">Polkadot (DOT)</option>
+                <option value="dogecoin">Dogecoin (DOGE)</option>
+            </select>
+            <button type="button" onclick="analyzeCrypto()">تحليل العملة</button>
+        </div>
+        <div id="cryptoInfo"></div>
+        <div class="error" id="errorMessage"></div>
+        <canvas id="cryptoChart"></canvas>
+    </main>
+    <footer>
+        <p>جميع الحقوق محفوظة © 2024</p>
+    </footer>
+    <script>
+        const apiUrl = 'https://api.coingecko.com/api/v3';
+        const cryptoSelector = document.getElementById('cryptoSelector');
+        const errorMessageDiv = document.getElementById('errorMessage');
+        const cryptoInfoDiv = document.getElementById('cryptoInfo');
+
+        // تحليل العملة
+        async function analyzeCrypto() {
+            const cryptoId = cryptoSelector.value;
+            if (!cryptoId) {
+                errorMessageDiv.textContent = 'يرجى اختيار عملة من القائمة.';
+                return;
+            }
+
+            // Clear previous results
+            errorMessageDiv.textContent = '';
+            cryptoInfoDiv.innerHTML = '';
+            const ctx = document.getElementById('cryptoChart').getContext('2d');
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+            try {
+                // Fetch general crypto data
+                const response = await fetch(`${apiUrl}/coins/${cryptoId}`);
+                if (!response.ok) throw new Error("تعذر جلب بيانات العملة.");
+
+                const cryptoData = await response.json();
+                const { name, symbol, market_data } = cryptoData;
+
+                // Display basic info
+                cryptoInfoDiv.innerHTML = `
+                    <h2>${name} (${symbol.toUpperCase()})</h2>
+                    <p>السعر الحالي: ${market_data.current_price.usd} دولار</p>
+                    <p>التغيير خلال 24 ساعة: ${market_data.price_change_percentage_24h.toFixed(2)}%</p>
+                    <p>القيمة السوقية: ${market_data.market_cap.usd} دولار</p>
+                    <p>الحجم خلال 24 ساعة: ${market_data.total_volume.usd} دولار</p>
+                `;
+
+                // Fetch market chart data for the past 7 days
+                const chartRes = await fetch(
+                    `${apiUrl}/coins/${cryptoId}/market_chart?vs_currency=usd&days=7`
+                );
+                const chartData = await chartRes.json();
+
+                // Prepare data for chart
+                const prices = chartData.prices.map(price => price[1]);
+                const labels = chartData.prices.map(price => {
+                    const date = new Date(price[0]);
+                    return `${date.getDate()}/${date.getMonth() + 1}`;
+                });
+
+                // Create chart
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `سعر ${name} خلال 7 أيام (بالدولار)`,
+                            data: prices,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: { enabled: true }
+                        },
+                        scales: {
+                            x: { title: { display: true, text: 'الأيام' } },
+                            y: { title: { display: true, text: 'السعر بالدولار' } }
+                        }
+                    }
+                });
+            } catch (error) {
+                errorMessageDiv.textContent = error.message || 'حدث خطأ أثناء جلب البيانات.';
+            }
+        }
+    </script>
+</body>
+</html>
